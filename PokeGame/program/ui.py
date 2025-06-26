@@ -1,176 +1,167 @@
-from settings import *  # 1 - Importa configurações globais do jogo (como cores, dimensões, etc.)
-from support import folder_importer  # 2 - Importa função utilitária para carregar pastas de imagens
+from settings import *  # 1 - Importa as configurações globais do jogo (como cores e dimensões)
+from support import folder_importer  # 2 - Importa função utilitária para carregar imagens de uma pasta
 
-class UI:  # 3 - Define a classe responsável pela interface do jogador
-    def __init__(self, monster, player_monsters, simple_surfs, get_input):  # 4 - Inicializa a interface gráfica
-        self.display_surface = pygame.display.get_surface()  # 5 - Superfície principal onde tudo será desenhado
-        self.font = pygame.font.Font(None, 30)  # 6 - Define a fonte usada na interface
-        self.left = WINDOW_WIDTH / 2 - 100  # 7 - Define a posição horizontal da UI
-        self.top = WINDOW_HEIGHT / 2 + 50  # 8 - Define a posição vertical da UI
+class UI:  # 3 - Classe responsável pela interface do jogador (menus de ação, troca, cura etc.)
+    def __init__(self, monster, player_monsters, simple_surfs, get_input):  # 4 - Inicializa a interface do jogador
+        self.display_surface = pygame.display.get_surface()  # 5 - Superfície onde os elementos da UI serão desenhados
+        self.font = pygame.font.Font(None, 30)  # 6 - Fonte usada nos textos da UI
+        self.left = WINDOW_WIDTH / 2 - 100  # 7 - Posição horizontal da UI
+        self.top = WINDOW_HEIGHT / 2 + 50  # 8 - Posição vertical da UI
         self.monster = monster  # 9 - Monstro atual do jogador
-        self.simple_surfs = simple_surfs  # 10 - Dicionário com sprites simples dos monstros
-        self.get_input = get_input  # 11 - Função callback para registrar escolhas do jogador
+        self.simple_surfs = simple_surfs  # 10 - Dicionário de imagens simples dos monstros
+        self.get_input = get_input  # 11 - Função callback para processar a ação do jogador
 
-        self.general_options = ['attack', 'heal', 'switch', 'escape']  # 12 - Ações principais disponíveis
-        self.general_index = {'col' : 0, 'row': 0}  # 13 - Índice do menu geral (posição na grade)
-        self.attack_index = {'col': 0, 'row': 0}  # 14 - Índice do menu de ataques
-        self.state = 'general'  # 15 - Estado atual da UI (tipo de menu ativo)
-        self.rows, self.cols  = 2,2  # 16 - Define a grade de opções (2x2)
-        self.visible_monsters = 4  # 17 - Quantos monstros aparecem no menu de troca
-        self.player_monsters = player_monsters  # 18 - Lista de monstros do jogador
-        self.available_monsters = [monster for monster in self.player_monsters if monster != self.monster and monster.health > 0]  # 19 - Filtra apenas os monstros disponíveis para troca
-        self.switch_index = 0  # 20 - Índice do monstro selecionado para troca
+        # control
+        self.general_options = ['attack', 'heal', 'switch', 'escape']  # 12 - Opções principais disponíveis
+        self.general_index = {'col' : 0, 'row': 0}  # 13 - Índice da seleção no menu principal
+        self.attack_index = {'col': 0, 'row': 0}  # 14 - Índice da seleção no menu de ataque
+        self.state = 'general'  # 15 - Estado atual da interface
+        self.rows, self.cols  = 2,2  # 16 - Número de linhas e colunas dos menus
+        self.visible_monsters = 4  # 17 - Quantos monstros aparecem ao mesmo tempo no menu de troca
+        self.player_monsters = player_monsters  # 18 - Lista de todos os monstros do jogador
+        self.available_monsters = [monster for monster in self.player_monsters if monster != self.monster and monster.health > 0]  # 19 - Filtra os monstros disponíveis para troca
+        self.switch_index = 0  # 20 - Índice atual do menu de troca
 
-        self.elementos_icones = folder_importer('images', 'icones')  # 21 - Carrega ícones dos elementos das habilidades
+        # ícones
+        self.elementos_icones = folder_importer('images', 'icones')  # 21 - Carrega os ícones dos elementos
 
-    # Abaixo estão os métodos que tratam a entrada do jogador, desenham os menus e atualizam a interface;
-    def input(self):  # 22 - Trata a entrada de teclado do jogador
+    def input(self):  # 22 - Função que processa entradas do jogador
         keys = pygame.key.get_just_pressed()  # 23 - Captura teclas recém pressionadas
+        if self.state == 'general':  # 24 - Menu principal
+            self.general_index['row'] = (self.general_index['row'] + int(keys[pygame.K_DOWN]) + int(keys[pygame.K_s]) - int(keys[pygame.K_UP]) - int(keys[pygame.K_w])) % self.rows  # 25 - Navega entre as linhas
+            self.general_index['col'] = (self.general_index['col'] + int(keys[pygame.K_RIGHT]) + int(keys[pygame.K_d]) - int(keys[pygame.K_LEFT]) - int(keys[pygame.K_a])) % self.cols  # 26 - Navega entre as colunas
+            if keys[pygame.K_SPACE] or keys[pygame.K_RETURN]:  # 27 - Seleciona uma opção se pressionar espaço ou enter;
+                self.state = self.general_options[self.general_index['col'] + self.general_index['row'] * 2]  # 28 - Muda o estado da UI conforme a seleção
+        
+        elif self.state == 'attack':  # 29 - Menu de ataque
+            self.attack_index['row'] = (self.attack_index['row'] + int(keys[pygame.K_DOWN]) + int(keys[pygame.K_s]) - int(keys[pygame.K_UP]) - int(keys[pygame.K_w])) % self.rows  # 30 - Move linha
+            self.attack_index['col'] = (self.attack_index['col'] + int(keys[pygame.K_RIGHT]) + int(keys[pygame.K_d]) - int(keys[pygame.K_LEFT]) - int(keys[pygame.K_a])) % self.cols  # 31 - Move coluna
+            if keys[pygame.K_SPACE] or keys[pygame.K_RETURN]:  # 32 - Confirma ataque;
+                attack = (self.monster.abilities[self.attack_index['col'] + self.attack_index['row'] * 2])  # 33 - Recupera o ataque selecionado
+                self.get_input(self.state, attack)  # 34 - Envia o ataque
+                self.state = 'general'  # 35 - Volta para o menu principal
 
-        # Verifica se o jogador está no menu geral ou em outro estado
-        # Se estiver no menu geral, permite navegação entre opções
-        # Se estiver no menu de ataques, permite selecionar habilidades
-        if self.state == 'general':  # 24 - Se estiver no menu geral
-            self.general_index['row'] = (self.general_index['row'] + int(keys[pygame.K_DOWN]) + int(keys[pygame.K_s]) - int(keys[pygame.K_UP]) - int(keys[pygame.K_w])) % self.rows  # 25 - Atualiza linha com base nas teclas
-            self.general_index['col'] = (self.general_index['col'] + int(keys[pygame.K_RIGHT]) + int(keys[pygame.K_d]) - int(keys[pygame.K_LEFT]) - int(keys[pygame.K_a])) % self.cols  # 26 - Atualiza coluna com base nas teclas
-            if keys[pygame.K_SPACE] or keys[pygame.K_RETURN]:  # 27 - Confirma opção
-                self.state = self.general_options[self.general_index['col'] + self.general_index['row'] * 2]  # 28 - Atualiza estado da UI com base na opção escolhida
+        elif self.state == 'switch':  # 36 - Menu de troca
+            if self.available_monsters:  # 37 - Se há monstros disponíveis
+                self.switch_index = (self.switch_index + int(keys[pygame.K_DOWN] + int(keys[pygame.K_s]) - int(keys[pygame.K_UP] + int(keys[pygame.K_w])))) % len(self.available_monsters)  # 38 - Muda o índice da troca
+            
+                if keys[pygame.K_SPACE] or keys[pygame.K_RETURN]:  # 39 - Seleciona troca;
+                    self.get_input(self.state, self.available_monsters[self.switch_index])  # 40 - Envia monstro escolhido
+                    self.state = 'general'  # 41 - Volta ao menu principal
 
-        # Se estiver no menu de ataques, permite selecionar habilidades;
-        elif self.state == 'attack':  # 29 - Se estiver no menu de ataques
-            self.attack_index['row'] = (self.attack_index['row'] + int(keys[pygame.K_DOWN]) + int(keys[pygame.K_s]) - int(keys[pygame.K_UP]) - int(keys[pygame.K_w])) % self.rows  # 30 - Atualiza linha
-            self.attack_index['col'] = (self.attack_index['col'] + int(keys[pygame.K_RIGHT]) + int(keys[pygame.K_d]) - int(keys[pygame.K_LEFT]) - int(keys[pygame.K_a])) % self.cols  # 31 - Atualiza coluna
-            if keys[pygame.K_SPACE] or keys[pygame.K_RETURN]:  # 32 - Se confirmar com espaço ou enter;
-                attack = (self.monster.abilities[self.attack_index['col'] + self.attack_index['row'] * 2])  # 33 - Seleciona habilidade
-                self.get_input(self.state, attack)  # 34 - Envia ação para o jogo
-                self.state = 'general'  # 35 - Retorna ao menu principal
-
-        # Se estiver no menu de troca, permite selecionar outro monstro;
-        elif self.state == 'switch':  # 36 - Se estiver no menu de troca
-            if self.available_monsters:  # 37 - Verifica se há monstros disponíveis
-                self.switch_index = (self.switch_index + int(keys[pygame.K_DOWN] + int(keys[pygame.K_s]) - int(keys[pygame.K_UP] + int(keys[pygame.K_w])))) % len(self.available_monsters)  # 38 - Atualiza seleção com base nas teclas
-
-                # Se pressionar espaço ou enter, confirma a troca;
-                # Envia a escolha do monstro para o jogo e volta ao menu principal;
-                if keys[pygame.K_SPACE] or keys[pygame.K_RETURN]:  # 39 - Confirma troca
-                    self.get_input(self.state, self.available_monsters[self.switch_index])  # 40 - Envia escolha
-                    self.state = 'general'  # 41 - Retorna ao menu principal
-
-        # Se estiver no menu de cura ou fuga, executa a ação correspondente;
-        elif self.state == 'heal':  # 42 - Se escolheu curar
+        elif self.state == 'heal':  # 42 - Ação de cura
             self.get_input('heal')  # 43 - Envia comando de cura
             self.state = 'general'  # 44 - Volta ao menu principal
 
-        #  Se escolheu fugir, executa a ação de fuga;
-        elif self.state == 'escape':  # 45 - Se escolheu fugir
+        elif self.state == 'escape':  # 45 - Ação de fuga
             self.get_input('escape')  # 46 - Envia comando de fuga
 
-        # Se pressionar a tecla de voltar, retorna ao menu geral; Tem isso?
-        # Isso permite ao jogador sair de menus secundários e voltar ao menu principal.
-        if keys[pygame.K_BACKSPACE]:  # 47 - Tecla para voltar ao menu geral
-            self.state = 'general'  # 48 - Reseta o estado
-            self.general_index = {'col': 0, 'row': 0}  # 49 - Reseta índice do menu geral
-            self.attack_index = {'col': 0, 'row': 0}  # 50 - Reseta índice do menu de ataque
-            self.switch_index = 0  # 51 - Reseta índice do menu de troca
+        if keys[pygame.K_BACKSPACE]:  # 47 - Tecla para voltar
+            self.state = 'general'  # 48 - Retorna ao menu principal;
+            self.general_index = {'col': 0, 'row': 0}  # 49 - Reseta o índice do menu principal;
+            self.attack_index = {'col': 0, 'row': 0}  # 50 - Reseta o índice do menu de ataque;
+            self.switch_index = 0  # 51 - Reseta o índice do menu de troca;
 
-    def quad_select(self, index, options):  # 52 - Desenha um menu em formato de grade (2x2)
-        rect = pygame.Rect(self.left + 40, self.top + 60, 400, 200)  # 53 - Define a área do menu
-        pygame.draw.rect(self.display_surface, COLORS['white'], rect, 0, 4)  # 54 - Preenche fundo
-        pygame.draw.rect(self.display_surface, COLORS['gray'], rect, 4, 4)  # 55 - Borda do menu
+    def quad_select(self, index, options):  # 52 - Desenha menu 2x2 para ações ou ataques
+        rect = pygame.Rect(self.left + 40, self.top + 60, 400, 200)  # 53 - Retângulo do menu
+        pygame.draw.rect(self.display_surface, COLORS['white'], rect, 0, 4)  # 54 - Fundo branco
+        pygame.draw.rect(self.display_surface, COLORS['gray'], rect, 4, 4)  # 55 - Borda cinza
 
-        for col in range(self.cols):  # 56 - Loop pelas colunas
-            for row in range(self.rows):  # 57 - Loop pelas linhas
-                x = rect.left + rect.width / (self.cols * 2) + (rect.width / self.cols) * col  # 58 - Calcula posição X do item
-                y = rect.top + rect.height / (self.rows * 2) + (rect.height/ self.rows) * row  # 59 - Calcula posição Y do item
-                i = col + 2 * row  # 60 - Calcula índice linear
-                color = COLORS['gray'] if col == index['col'] and row == index['row'] else COLORS['black']  # 61 - Destaca opção selecionada
+        for col in range(self.cols):  # 56 - Para cada coluna
+            for row in range(self.rows):  # 57 - Para cada linha
+                x = rect.left + rect.width / (self.cols * 2) + (rect.width / self.cols) * col  # 58 - Coordenada X do item
+                y = rect.top + rect.height / (self.rows * 2) + (rect.height/ self.rows) * row  # 59 - Coordenada Y do item
+                i = col + 2 * row  # 60 - Índice linear
+                color = COLORS['gray'] if col == index['col'] and row == index['row'] else COLORS['black']  # 61 - Cor do texto (destaque)
 
-                text_surf = self.font.render(options[i], True, color)  # 62 - Renderiza texto da opção
-                text_rect = text_surf.get_rect(center = (x, y))  # 63 - Centraliza texto
+                text_surf = self.font.render(options[i], True, color)  # 62 - Renderiza o texto
+                text_rect = text_surf.get_rect(center = (x, y))  # 63 - Centraliza o texto
 
-                if self.state == "attack":  # 64 - Se estiver mostrando habilidades
-                    ability_name = options[i]  # 65 - Nome da habilidade
-                    elemento = ABILITIES_DATA[ability_name]['element']  # 66 - Tipo elemental
-                    icon = self.elementos_icones[elemento]  # 67 - Ícone correspondente
-                    icon_rect = icon.get_rect(midright=(text_rect.left + 110, y - 35))  # 68 - Posição do ícone
-                    self.display_surface.blit(icon, icon_rect)  # 69 - Desenha ícone
+                if self.state == "attack":  # 64 - Se for ataque, desenha ícone;
+                    ability_name = options[i]  # 65 - Nome da habilidade;
+                    elemento = ABILITIES_DATA[ability_name]['element']  # 66 - Pega o tipo do ataque
+                    icon = self.elementos_icones[elemento]  # 67 - Ícone do tipo
+                    icon_small = pygame.transform.scale(icon, (23, 23))  # 68 - Redimensiona ícone
+                    icon_rect = icon_small.get_rect(midright=(text_rect.left + 110, y - 10))  # 69 - Define posição do ícone
+                    self.display_surface.blit(icon_small, icon_rect)  # 70 - Desenha o ícone
 
-                self.display_surface.blit(text_surf, text_rect)  # 70 - Desenha texto
+                self.display_surface.blit(text_surf, text_rect)  # 71 - Desenha o texto da ação
 
-    def switch(self):  # 71 - Desenha o menu de troca de monstros
-        rect = pygame.Rect(self.left + 40, self.top - 140, 400, 400)  # 72 - Área do menu
-        pygame.draw.rect(self.display_surface, COLORS['white'], rect, 0, 4)  # 73 - Fundo branco
-        pygame.draw.rect(self.display_surface, COLORS['gray'], rect, 4, 4)  # 74 - Borda cinza
+    def switch(self):  # 72 - Desenha o menu de troca de monstros
+        rect = pygame.Rect(self.left + 40, self.top - 140, 400, 400)  # 73 - Retângulo do menu
+        pygame.draw.rect(self.display_surface, COLORS['white'], rect, 0, 4)  # 74 - Fundo branco;
+        pygame.draw.rect(self.display_surface, COLORS['gray'], rect, 4, 4)  # 75 - Borda cinza;
 
-        v_offset = 0 if self.switch_index < self.visible_monsters else -(self.switch_index - self.visible_monsters + 1) * rect.height / self.visible_monsters  # 75 - Deslocamento vertical para rolagem
+        v_offset = 0 if self.switch_index < self.visible_monsters else -(self.switch_index - self.visible_monsters + 1) * rect.height / self.visible_monsters  # 76 - Compensa o scroll
 
-        for i in range(len(self.available_monsters)):  # 76 - Itera sobre os monstros disponíveis
-            x = rect.centerx  # 77 - Centro horizontal
-            y = rect.top + rect.height / (self.visible_monsters * 2) + rect.height / self.visible_monsters * i + v_offset  # 78 - Posição vertical
-            color = COLORS['gray'] if i == self.switch_index else COLORS['black']  # 79 - Cor do nome
+        for i in range(len(self.available_monsters)):  # 77 - Itera sobre os monstros disponíveis
+            x = rect.centerx  # 78 - Posição X central do retângulo;
+            y = rect.top + rect.height / (self.visible_monsters * 2) + rect.height / self.visible_monsters * i + v_offset  # 79 - Calcula a posição Y;
+            color = COLORS['gray'] if i == self.switch_index else COLORS['black']  # 80 - Cor de seleção;
+            name = self.available_monsters[i].name  # 81 - Nome do monstro;
 
-            name = self.available_monsters[i].name  # 80 - Nome do monstro
-            simple_surf = self.simple_surfs[name]  # 81 - Sprite do monstro
-            simple_rect = simple_surf.get_frect(center = (x - 100, y))  # 82 - Posição do sprite
+            simple_surf = self.simple_surfs[name]  # 82 - Imagem do monstro;
+            simple_rect = simple_surf.get_frect(center = (x - 100, y))  # 83 - Posição da imagem
 
-            text_surf = self.font.render(name, True, color)  # 83 - Renderiza texto
-            text_rect = text_surf.get_frect(midleft = (x,y))  # 84 - Posiciona texto
+            text_surf = self.font.render(name, True, color)  # 84 - Renderiza o texto do nome do monstro;
+            text_rect = text_surf.get_frect(midleft = (x,y))  # 85 - Posição do texto;
+            if rect.collidepoint(text_rect.center):  # 86 - Só desenha se estiver visível;
+                self.display_surface.blit(text_surf, text_rect)  # 87 - Desenha o texto do nome do monstro;
+                self.display_surface.blit(simple_surf, simple_rect)  # 88 - Desenha a imagem do monstro;
 
-            if rect.collidepoint(text_rect.center):  # 85 - Verifica se está visível
-                self.display_surface.blit(text_surf, text_rect)  # 86 - Desenha texto
-                self.display_surface.blit(simple_surf, simple_rect)  # 87 - Desenha sprite
+    def stats(self):  # 89 - Desenha a barra de vida do monstro atual
+        rect = pygame.FRect(self.left, self.top, 250, 80)  # 90 - Retângulo onde a barra de vida será desenhada;
+        pygame.draw.rect(self.display_surface, COLORS['white'], rect, 0, 4)  # 91 - Fundo branco;
+        pygame.draw.rect(self.display_surface, COLORS['gray'], rect, 4, 4)  # 92 - Borda cinza;
 
-    def stats(self):  # 88 - Exibe estatísticas do monstro (nome e vida)
-        rect = pygame.FRect(self.left, self.top, 250, 80)  # 89 - Área da barra de status
-        pygame.draw.rect(self.display_surface, COLORS['white'], rect, 0, 4)  # 90 - Fundo branco
-        pygame.draw.rect(self.display_surface, COLORS['gray'], rect, 4, 4)  # 91 - Borda cinza
+        name_surf = self.font.render(self.monster.name, True, COLORS['black'])  # 93 - Renderiza o nome do monstro;
+        name_rect = name_surf.get_frect(topleft = rect.topleft + pygame.Vector2(rect.width * 0.05, 12))  # 94 - Posição do nome;
+        self.display_surface.blit(name_surf, name_rect)  # 95 - Desenha o nome do monstro;
 
-        name_surf = self.font.render(self.monster.name, True, COLORS['black'])  # 92 - Nome do monstro
-        name_rect = name_surf.get_frect(topleft = rect.topleft + pygame.Vector2(rect.width * 0.05, 12))  # 93 - Posição do nome
-        self.display_surface.blit(name_surf, name_rect)  # 94 - Exibe nome
+        health_rect = pygame.FRect(name_rect.left, name_rect.bottom + 10, rect.width * 0.9, 20)  # 96 - Retângulo da barra de vida;
+        pygame.draw.rect(self.display_surface, COLORS['gray'], health_rect)  # 97 - Desenha fundo da barra de vida;
+        self.draw_bar(health_rect, self.monster.health, self.monster.max_health)  # 98 - Desenha a barra de vida com a função draw_bar;
 
-        health_rect = pygame.FRect(name_rect.left, name_rect.bottom + 10, rect.width * 0.9, 20)  # 95 - Área da barra de vida
-        pygame.draw.rect(self.display_surface, COLORS['gray'], health_rect)  # 96 - Fundo da barra de vida
-        self.draw_bar(health_rect, self.monster.health, self.monster.max_health)  # 97 - Desenha barra com valor atual
+    def draw_bar(self, rect, value, max_value):  # 99 - Função para desenhar barra de progresso (vida);
+        ratio = rect.width / max_value  # 100 - Calcula a proporção do valor máximo;
+        progress_rect = pygame.FRect(rect.topleft, (value * ratio, rect.height))  # 101 - Retângulo da barra de progresso;
+        pygame.draw.rect(self.display_surface, COLORS['red'], progress_rect)  # 102 - Desenha a barra de progresso com a cor vermelha;
 
-    def draw_bar(self, rect, value, max_value):  # 98 - Desenha uma barra proporcional (vida)
-        ratio = rect.width / max_value  # 99 - Proporção atual
-        progress_rect = pygame.FRect(rect.topleft, (value * ratio, rect.height))  # 100 - Retângulo proporcional
-        pygame.draw.rect(self.display_surface, COLORS['red'], progress_rect)  # 101 - Cor vermelha da barra
+    def update(self):  # 103 - Atualiza a UI;
+        self.input()  # 104 - Processa entradas do jogador;
+        self.available_monsters = [monster for monster in self.player_monsters if monster != self.monster and monster.health > 0]  # 105 - Atualiza lista de monstros disponíveis para troca;
 
-    def update(self):  # 102 - Atualiza interface
-        self.input()  # 103 - Lê entrada do jogador
-        self.available_monsters = [monster for monster in self.player_monsters if monster != self.monster and monster.health > 0]  # 104 - Atualiza lista de monstros vivos
+    def draw(self):  # 106 - Desenha os menus apropriados
+        match self.state:  # 107 - Verifica o estado atual da UI;
+            case 'general': self.quad_select(self.general_index, self.general_options)  # 108 - Desenha o menu geral;
+            case 'attack': self.quad_select(self.attack_index, self.monster.abilities)  # 109 - Desenha o menu de ataques;
+            case 'switch': self.switch()  # 110 - Desenha o menu de troca de monstros;
 
-    def draw(self):  # 105 - Desenha elementos da interface
-        match self.state:  # 106 - Escolhe interface com base no estado
-            case 'general': self.quad_select(self.general_index, self.general_options)  # 107 - Menu principal
-            case 'attack': self.quad_select(self.attack_index, self.monster.abilities)  # 108 - Menu de ataques
-            case 'switch': self.switch()  # 109 - Menu de troca
+        if self.state != 'switch':  # 111 - Se não estiver no menu de troca, desenha a barra de vida do monstro atual;
+            self.stats()  # 112 - Desenha a barra de vida do monstro atual;
 
-        if self.state != 'switch':  # 110 - Se não estiver no menu de troca
-            self.stats()  # 111 - Mostra status do monstro
+# ===========================
+# Classe da UI do oponente;
+class OpponentUI:  # 113 - Classe da UI do oponente
+    def __init__(self, monster):  # 114 - Inicializa a UI do oponente;
+        self.display_surface = pygame.display.get_surface()  # 115 - Superfície onde a UI do oponente será desenhada;
+        self.monster = monster  # 116 - Monstro do oponente;
+        self.font = pygame.font.Font(None, 30)  # 117 - Fonte usada nos textos da UI do oponente;
 
-class OpponentUI:  # 112 - Interface gráfica do oponente
-    def __init__(self, monster):  # 113 - Inicializa interface com o monstro adversário
-        self.display_surface = pygame.display.get_surface()  # 114 - Superfície principal
-        self.monster = monster  # 115 - Monstro adversário
-        self.font = pygame.font.Font(None, 30)  # 116 - Fonte do texto
+    def draw(self):  # 118 - Desenha a barra de vida do oponente;
+        rect = pygame.FRect((0, 0), (250, 80)).move_to(midleft = (500, self.monster.rect.centery))  # 119 - Retângulo onde a barra de vida do oponente será desenhada;
+        pygame.draw.rect(self.display_surface, COLORS['white'], rect, 0, 4)  # 120 - Fundo branco;
+        pygame.draw.rect(self.display_surface, COLORS['gray'], rect, 4, 4)  # 121 - Borda cinza;
 
-    def draw(self):  # 117 - Desenha UI do oponente
-        rect = pygame.FRect((0, 0), (250, 80)).move_to(midleft = (500, self.monster.rect.centery))  # 118 - Área de status
-        pygame.draw.rect(self.display_surface, COLORS['white'], rect, 0, 4)  # 119 - Fundo branco
-        pygame.draw.rect(self.display_surface, COLORS['gray'], rect, 4, 4)  # 120 - Borda cinza
+        name_surf = self.font.render(self.monster.name, True, COLORS['black'])  # 122 - Renderiza o nome do monstro do oponente;
+        name_rect = name_surf.get_frect(topleft = rect.topleft + pygame.Vector2(rect.width * 0.05, 12))  # 123 - Posição do nome do monstro;
+        self.display_surface.blit(name_surf, name_rect)  # 124 - Desenha o nome do monstro do oponente;
 
-        name_surf = self.font.render(self.monster.name, True, COLORS['black'])  # 121 - Nome do oponente
-        name_rect = name_surf.get_frect(topleft = rect.topleft + pygame.Vector2(rect.width * 0.05, 12))  # 122 - Posição do nome
-        self.display_surface.blit(name_surf, name_rect)  # 123 - Exibe nome
+        health_rect = pygame.FRect(name_rect.left, name_rect.bottom + 10, rect.width * 0.9, 20)  # 125 - Retângulo da barra de vida do oponente;
+        ratio = health_rect.width / self.monster.max_health  # 126 - Calcula a proporção do valor máximo de vida do oponente;
+        progress_rect = pygame.FRect(health_rect.topleft, (self.monster.health * ratio, health_rect.height))  # 127 - Retângulo da barra de progresso da vida do oponente;
+        pygame.draw.rect(self.display_surface, COLORS['gray'], health_rect)  # 128 - Desenha fundo da barra de vida do oponente;
+        pygame.draw.rect(self.display_surface, COLORS['red'], progress_rect)  # 129 - Desenha a barra de progresso da vida do oponente;
 
-        health_rect = pygame.FRect(name_rect.left, name_rect.bottom + 10, rect.width * 0.9, 20)  # 124 - Área da barra de vida
-        ratio = health_rect.width / self.monster.max_health  # 125 - Proporção da vida
-        progress_rect = pygame.FRect(health_rect.topleft, (self.monster.health * ratio, health_rect.height))  # 126 - Barra proporcional
-        pygame.draw.rect(self.display_surface, COLORS['gray'], health_rect)  # 127 - Fundo da barra
-        pygame.draw.rect(self.display_surface, COLORS['red'], progress_rect)  # 128 - Vida em vermelho
-        
-    def update(self):  # 129 - Placeholder para atualizações futuras
-        pass  # 130 - Nada implementado ainda
+    def update(self):  # 130 - Atualiza a UI do oponente;
+        pass  # 131 - Método reservado para atualizações futuras
